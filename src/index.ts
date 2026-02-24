@@ -721,20 +721,26 @@ class BitbucketServer {
 
   private async mergePullRequest(params: PullRequestParams, options: MergeOptions = {}) {
     const { project, repository, prId } = params;
-    
+
     if (!project || !repository || !prId) {
       throw new McpError(
         ErrorCode.InvalidParams,
         'Project, repository, and prId are required'
       );
     }
-    
+
     const { message, strategy = 'merge-commit' } = options;
-    
+
+    // Fetch current PR version for optimistic locking (required by Bitbucket Server API)
+    const prResponse = await this.api.get(
+      `/projects/${project}/repos/${repository}/pull-requests/${prId}`
+    );
+    const version = prResponse.data.version;
+
     const response = await this.api.post(
       `/projects/${project}/repos/${repository}/pull-requests/${prId}/merge`,
       {
-        version: -1,
+        version,
         message,
         strategy
       }
@@ -747,18 +753,24 @@ class BitbucketServer {
 
   private async declinePullRequest(params: PullRequestParams, message?: string) {
     const { project, repository, prId } = params;
-    
+
     if (!project || !repository || !prId) {
       throw new McpError(
         ErrorCode.InvalidParams,
         'Project, repository, and prId are required'
       );
     }
-    
+
+    // Fetch current PR version for optimistic locking (required by Bitbucket Server API)
+    const prResponse = await this.api.get(
+      `/projects/${project}/repos/${repository}/pull-requests/${prId}`
+    );
+    const version = prResponse.data.version;
+
     const response = await this.api.post(
       `/projects/${project}/repos/${repository}/pull-requests/${prId}/decline`,
       {
-        version: -1,
+        version,
         message
       }
     );
